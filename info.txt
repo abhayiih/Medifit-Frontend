@@ -1,0 +1,285 @@
+npm install @mui/material @emotion/react @emotion/styled @mui/icons-material
+
+
+
+
+
+/////////////////////////////////////////////////////////////////////////////////////////
+
+
+import { createBrowserRouter, RouterProvider, Outlet } from 'react-router-dom';
+import Header from './components/Header';
+import Footer from './components/Footer';
+import HomePage from './pages/HomePage';
+import HomePage2 from './pages/HomePage2';
+import About from './pages/About';
+import ShopHero from './pages/ShopHero';
+import Contact from './pages/Contact';
+import Products from './pages/Products';
+
+const RootLayout = () => {
+  return (
+    <>
+      <Header />
+      <Outlet /> 
+      <Footer />
+    </>
+  );
+};
+
+const router = createBrowserRouter([
+  {
+    path: '/', 
+    element: <RootLayout />,
+    children: [
+      { path: '/', element: <HomePage /> },
+      { path: 'home2', element: <HomePage2 /> },
+      { path: 'shop/:id', element: <ShopHero /> }, // updated with URL parameter
+      { path: 'about', element: <About /> },
+      { path: 'contact', element: <Contact /> },
+      { path: 'products', element: <Products /> },
+    ],
+  },
+]);
+
+function App() {
+  return <RouterProvider router={router} />;
+}
+
+export default App;
+
+///////////////////////////////////////////////////////////////////////////
+
+
+import {
+  Box,
+  Typography,
+  Grid,
+  Card,
+  CardContent,
+  CardMedia,
+  Chip,
+} from "@mui/material";
+import { Link } from "react-router-dom";
+import { ShoppingCart } from "@mui/icons-material";
+import p1 from "../assets/p1.svg";
+import p2 from "../assets/p2.svg";
+import p3 from "../assets/p3.svg";
+import p4 from "../assets/p4.svg";
+import { CommonTypography, CommonButton } from "../components/CommonComponents";
+
+export const products = [
+  {
+    id: 0,
+    title: "Microscope",
+    price: 45.0,
+    originalPrice: 50.0,
+    image: p1,
+    chip: "New",
+    images: [p1],
+  },
+  {
+    id: 1,
+    title: "Pulse oximeter",
+    price: 19.0,
+    originalPrice: 25.0,
+    image: p2,
+    chip: "Save 10%",
+    images: [p2],
+  },
+  {
+    id: 2,
+    title: "Vitamin serum",
+    price: 20.0,
+    originalPrice: 30.0,
+    image: p3,
+    chip: null,
+    images: [p3],
+  },
+  {
+    id: 3,
+    title: "High protein",
+    price: 50.0,
+    originalPrice: 60.0,
+    image: p4,
+    chip: "New",
+    images: [p4],
+  },
+];
+
+export default function Recent({ title = "Products" }) {
+  return (
+    <Box
+      sx={{
+        padding: 4,
+        backgroundColor: "background.default",
+        textAlign: "center",
+      }}
+    >
+      {/* Title */}
+      <Box sx={{ mb: 4 }}>
+        <CommonTypography variant="h4">{title}</CommonTypography>
+      </Box>
+
+      {/* Products Grid */}
+      <Grid container spacing={4} justifyContent="center">
+        {products.map((product, index) => (
+          <Grid item key={index} sx={{ flex: "1 1 250px", maxWidth: 250 }}>
+            <Card
+              sx={{
+                backgroundColor: "#EEEDE7",
+                position: "relative",
+                overflow: "hidden",
+                "&:hover .shop-btn": { opacity: 1 },
+              }}
+            >
+              {/* Chip */}
+              {product.chip && (
+                <Chip
+                  label={product.chip}
+                  sx={{
+                    position: "absolute",
+                    top: 8,
+                    left: 8,
+                    backgroundColor: "#D3744A",
+                    color: "white",
+                    fontWeight: "bold",
+                  }}
+                />
+              )}
+
+              {/* Image */}
+              <Box sx={{ backgroundColor: "white", p: 2 }}>
+                <CardMedia
+                  component="img"
+                  alt={product.title}
+                  image={product.image}
+                  sx={{ width: "120px", height: "120px", objectFit: "contain", mx: "auto" }}
+                />
+              </Box>
+
+              {/* Product Info */}
+              <CardContent>
+                <Typography variant="h6">{product.title}</Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  ${product.price.toFixed(2)}
+                  <span style={{ textDecoration: "line-through", marginLeft: 8 }}>
+                    ${product.originalPrice.toFixed(2)}
+                  </span>
+                </Typography>
+
+                <CommonButton
+                  component={Link}
+                  to={`/shop/${product.id}`} // pass the product ID
+                  variant="contained"
+                  startIcon={<ShoppingCart />}
+                  className="shop-btn"
+                  sx={{
+                    opacity: 0,
+                    transition: "opacity 0.3s",
+                    backgroundColor: "#D3744A",
+                    "&:hover": { backgroundColor: "#b85c36" },
+                  }}
+                >
+                  Shop Now
+                </CommonButton>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+    </Box>
+  );
+}
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+import { useState } from "react";
+import { useParams } from "react-router-dom";
+import { Box, Grid, Typography, TextField } from "@mui/material";
+import { CommonButton } from "../components/CommonComponents";
+import { ArrowDropUp, ArrowDropDown } from "@mui/icons-material";
+import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
+import { products } from "./Recent"; // import product array
+
+export default function ShopHero() {
+  const { id } = useParams();
+  const product = products.find((p) => p.id === Number(id));
+
+  const [quantity, setQuantity] = useState(1);
+  const increment = () => setQuantity(prev => prev + 1);
+  const decrement = () => setQuantity(prev => (prev > 1 ? prev - 1 : 1));
+
+  if (!product) return <Typography>Product not found</Typography>;
+
+  return (
+    <Box justifyContent="center" alignItems="center" sx={{ display: "flex", flexDirection: "column", py: 5, mt: 10, mr: 10 }}>
+      <Box sx={{ maxWidth: 900, mx: 0 }}>
+        <Grid container spacing={8} justifyContent="center">
+          {/* Left Images */}
+          <Grid size={{ xs: 12, sm: 5 }}>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              {product.images.map((img, idx) => (
+                <Box
+                  key={idx}
+                  component="img"
+                  src={img}
+                  alt={`${product.title} ${idx + 1}`}
+                  sx={{ width: "100%", maxWidth: 350, height: "auto", borderRadius: 2 }}
+                />
+              ))}
+            </Box>
+          </Grid>
+
+          {/* Right Content */}
+          <Grid size={{ xs: 12, sm: 5 }} sx={{ ml: 5 }}>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <Typography variant="h4" fontWeight="bold">{product.title}</Typography>
+
+              <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
+                <Typography variant="h5" fontWeight="bold">${product.price.toFixed(2)} USD</Typography>
+                <Typography variant="body2" sx={{ textDecoration: "line-through", color: "text.secondary" }}>
+                  ${product.originalPrice.toFixed(2)} USD
+                </Typography>
+              </Box>
+
+              {/* Quantity + Add to Cart */}
+              <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
+                <TextField
+                  size="small"
+                  value={quantity}
+                  onChange={(e) => setQuantity(Number(e.target.value))}
+                  sx={{ width: 90 }}
+                  InputProps={{
+                    endAdornment: (
+                      <Box sx={{ display: "flex", flexDirection: "column", ml: 1 }}>
+                        <ArrowDropUp sx={{ cursor: "pointer" }} onClick={increment} />
+                        <ArrowDropDown sx={{ cursor: "pointer" }} onClick={decrement} />
+                      </Box>
+                    ),
+                  }}
+                />
+                <CommonButton variant="contained" endIcon={<ShoppingCartIcon />}>
+                  Add to Cart
+                </CommonButton>
+              </Box>
+
+              {/* Product Description */}
+              <Box>
+                <Typography variant="subtitle1" fontWeight="bold">Product Description</Typography>
+                <Typography variant="body2" sx={{ mt: 1 }}>
+                  {product.title} is a premium product that meets your needs.
+                </Typography>
+              </Box>
+            </Box>
+          </Grid>
+        </Grid>
+      </Box>
+    </Box>
+  );
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////////////
