@@ -16,7 +16,7 @@ export default function HomePage2() {
       <Collections />
       <Category />
       <Review />
-      <Blog/>
+      {/* <Blog/> */}
     </Box>
   );
 }

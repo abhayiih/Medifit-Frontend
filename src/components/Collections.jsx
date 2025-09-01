@@ -1,3 +1,5 @@
+import { useState, useEffect } from "react";
+import axios from "axios";
 import {
   Box,
   Typography,
@@ -7,28 +9,32 @@ import {
   CardMedia,
 } from "@mui/material";
 import { Link } from "react-router-dom";
-import nevulizer from "../assets/Nebulizer.svg";
-import presser from "../assets/Pressure.svg";
-import Divingmask from "../assets/Divingmask.svg";
-import Temperature from "../assets/Temperature.svg";
-import Hairtablets from "../assets/Hairtablets.svg";
 import { CommonButton, CommonTypography } from "../components/CommonComponents";
 import RigthNav from "../assets/RigthNev.svg";
 import { ShoppingCart } from "@mui/icons-material";
 
-const products = [
-  { id:13,title: "Hair tablets", price: "$19.00 USD", originalPrice: "$25.00 USD", image: Hairtablets },
-  { id:14,title: "Pressure measuring", price: "$25.00 USD", originalPrice: "$30.00 USD", image: presser },
-  { id:15,title: "Diving mask", price: "$40.00 USD", originalPrice: "$45.00 USD", image: Divingmask },
-  { id:16,title: "Temperature gun", price: "$20.00 USD", originalPrice: "$25.00 USD", image: Temperature },
-  { id:17,title: "Nebulizer mask", price: "$15.00 USD", originalPrice: "$18.00 USD", image: nevulizer },
-  { id:17,title: "Nebulizer mask", price: "$15.00 USD", originalPrice: "$18.00 USD", image: nevulizer },
-  { id:17,title: "Nebulizer mask", price: "$15.00 USD", originalPrice: "$18.00 USD", image: nevulizer },
-];
+const API_BASE = "http://localhost:5000";
 
 export default function Collections() {
+  const [products, setProducts] = useState([]);
   const cardWidth = 320;
   const cardHeight = 340;
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const res = await axios.get(`${API_BASE}/api/products`);
+        // Sort by _id ascending to get oldest first and take 5 items
+        const oldest5Products = res.data
+          .sort((a, b) => a._id.localeCompare(b._id))
+          .slice(0, 5);
+        setProducts(oldest5Products);
+      } catch (err) {
+        console.error("Failed to fetch products:", err);
+      }
+    };
+    fetchProducts();
+  }, []);
 
   return (
     <Box
@@ -37,14 +43,13 @@ export default function Collections() {
         backgroundColor: "background.default",
         display: "flex",
         justifyContent: "center",
-        
       }}
     >
-      <Box  sx={{ maxWidth: 1090, width: "100%" }}>
-        {/* First Row: Text Card + 2 product cards */}
+      <Box sx={{ maxWidth: 1090, width: "100%" }}>
+        {/* First Row: Text Card + Product Cards */}
         <Grid container spacing={8} justifyContent="flex-start">
           {/* Typography Card */}
-          <Grid >
+          <Grid>
             <Card
               sx={{
                 width: cardWidth,
@@ -56,10 +61,9 @@ export default function Collections() {
                 padding: 2,
                 textAlign: "center",
                 boxSizing: "border-box",
-                backgroundColor:" #eeede7"
+                backgroundColor: "#eeede7",
               }}
             >
-              {/* Text section */}
               <Box>
                 <CommonTypography variant="h4" sx={{ lineHeight: 1.4, mb: 3 }}>
                   Discover our collection
@@ -68,8 +72,6 @@ export default function Collections() {
                   Our medical store offers trusted products, easy navigation, and fast shipping.
                 </Typography>
               </Box>
-
-              {/* Button at bottom */}
               <CommonButton
                 component={Link}
                 to="/products"
@@ -81,8 +83,10 @@ export default function Collections() {
               </CommonButton>
             </Card>
           </Grid>
-          {products.map((product, index) => (
-            <Grid item key={index}>
+
+          {/* Product Cards */}
+          {products.map((product) => (
+            <Grid item key={product._id}>
               <Card
                 sx={{
                   width: cardWidth,
@@ -99,21 +103,21 @@ export default function Collections() {
                   <CardMedia
                     component="img"
                     alt={product.title}
-                    image={product.image}
+                    image={`${API_BASE}${product.image}`}
                     sx={{ width: "150px", height: "150px", objectFit: "contain", mx: "auto" }}
                   />
                 </Box>
                 <CardContent sx={{ textAlign: "center" }}>
                   <Typography variant="h6">{product.title}</Typography>
                   <Typography variant="body1" sx={{ mt: 1 }}>
-                    {product.price}
+                    ₹{Number(product.price).toLocaleString("en-IN")}
                     <span style={{ textDecoration: "line-through", marginLeft: 8 }}>
-                      {product.originalPrice}
+                      ₹{Number(product.originalPrice).toLocaleString("en-IN")}
                     </span>
                   </Typography>
                   <CommonButton
                     component={Link}
-                     to={`/shop/${product.id}`}
+                    to={`/shop/${product._id}`}
                     variant="contained"
                     startIcon={<ShoppingCart />}
                     className="shop-btn"
@@ -133,8 +137,7 @@ export default function Collections() {
             </Grid>
           ))}
         </Grid>
-
-        </Box>
+      </Box>
     </Box>
   );
 }

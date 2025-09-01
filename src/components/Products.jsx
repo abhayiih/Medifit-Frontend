@@ -1,3 +1,5 @@
+import { useState, useEffect } from "react";
+import axios from "axios";
 import {
   Box,
   Typography,
@@ -6,51 +8,88 @@ import {
   CardContent,
   CardMedia,
   Chip,
+  TextField,
+  Button,
 } from "@mui/material";
 import { CommonTypography, CommonButton } from "../components/CommonComponents";
-import { ShoppingCart } from "@mui/icons-material";
+import { ShoppingCart, Add } from "@mui/icons-material";
 import { Link } from "react-router-dom";
 
-import product1 from "../assets/product1.svg";
-import product2 from "../assets/product2.svg";
-import product3 from "../assets/product3.svg";
-import product4 from "../assets/product4.svg";
-import product5 from "../assets/product5.svg";
-import product6 from "../assets/product6.svg";
-import product7 from "../assets/product7.svg";
-import product8 from "../assets/product8.svg";
-import p1 from "../assets/p1.svg";
-import p2 from "../assets/p2.svg";
-import p3 from "../assets/p3.svg";
-import p4 from "../assets/p4.svg";
-import nevulizer from "../assets/Nebulizer.svg";
-import presser from "../assets/Pressure.svg";
-import Divingmask from "../assets/Divingmask.svg";
-import Temperature from "../assets/Temperature.svg";
-import Hairtablets from "../assets/Hairtablets.svg";
-
-
-const products = [
-  { id: 1, title: "B12 medicine", price: "$19.00 USD", originalPrice: "$25.00 USD", image: product1 },
-  { id: 2, title: "Tonometer", price: "$19.00 USD", originalPrice: "$30.00 USD", image: product2 },
-  { id: 3, title: "ECG cardiograph", price: "$20.00 USD", originalPrice: "$30.00 USD", image: product3 },
-  { id: 4, title: "Blood glucose meter", price: "$15.00 USD", originalPrice: "$25.00 USD", image: product4 },
-  { id: 5, title: "Lab hand gloves", price: "$20.00 USD", originalPrice: "$25.00 USD", image: product5 },
-  { id: 6, title: "Stethoscope", price: "$20.00 USD", originalPrice: "$28.00 USD", image: product6 },
-  { id: 7, title: "Inhaler pressure drop", price: "$35.00 USD", originalPrice: "$40.00 USD", image: product7 },
-  { id: 8, title: "Multi vitamin", price: "$20.00 USD", originalPrice: "$25.00 USD", image: product8 },
-  { id: 9, title: "Microscope", price: "$45.00 USD", originalPrice: "$50.00 USD", image: p1, chip: "New" },
-  { id: 10, title: "Pulse oximeter", price: "$19.00 USD", originalPrice: "$25.00 USD", image: p2, chip: "Save 10%" },
-  { id: 11, title: "Vitamin serum", price: "$20.00 USD", originalPrice: "$30.00 USD", image: p3 },
-  { id: 12, title: "High protein", price: "$50.00 USD", originalPrice: "$60.00 USD", image: p4, chip: "New" },
-  { id: 13, title: "Hair tablets", price: "$19.00 USD", originalPrice: "$25.00 USD", image: Hairtablets },
-  { id: 14, title: "Pressure measuring", price: "$25.00 USD", originalPrice: "$30.00 USD", image: presser },
-  { id: 15, title: "Diving mask", price: "$40.00 USD", originalPrice: "$45.00 USD", image: Divingmask },
-  { id: 16, title: "Temperature gun", price: "$20.00 USD", originalPrice: "$25.00 USD", image: Temperature },
-  { id: 17, title: "Nebulizer mask", price: "$15.00 USD", originalPrice: "$18.00 USD", image: nevulizer },
-];
+const API_BASE = "http://localhost:5000";
 
 export default function Products() {
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [discount, setDiscount] = useState(0); // existing discount
+  const [platformFee, setPlatformFee] = useState(0); // new platform fee
+  const user = JSON.parse(localStorage.getItem("user"));
+
+  // Fetch products
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const response = await axios.get(`${API_BASE}/api/products`);
+        setProducts(response.data);
+      } catch (err) {
+        console.error("Error fetching products:", err);
+      }
+    };
+    fetchProducts();
+  }, []);
+
+  // Fetch categories
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await axios.get(`${API_BASE}/api/categories`);
+        setCategories(response.data.map((c) => c.name));
+      } catch (err) {
+        console.error("Error fetching categories:", err);
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  // Fetch admin discount
+  useEffect(() => {
+    const fetchDiscount = async () => {
+      try {
+        if (!user?.isAdmin) return;
+        const token = localStorage.getItem("token");
+        const { data } = await axios.get(`${API_BASE}/api/admin/discount`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setDiscount(data.rate);
+      } catch (err) {
+        console.error("Failed to fetch discount:", err);
+      }
+    };
+    fetchDiscount();
+  }, []);
+
+  // Fetch admin platform fee
+  useEffect(() => {
+    const fetchPlatformFee = async () => {
+      try {
+        if (!user?.isAdmin) return;
+        const token = localStorage.getItem("token");
+        const { data } = await axios.get(`${API_BASE}/api/admin/platform-fee`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setPlatformFee(data.rate);
+      } catch (err) {
+        console.error("Failed to fetch platform fee:", err);
+      }
+    };
+    fetchPlatformFee();
+  }, []);
+
+  const filteredProducts =
+    selectedCategory === "All"
+      ? products
+      : products.filter((p) => p.category === selectedCategory);
+
   return (
     <Box
       sx={{
@@ -61,17 +100,51 @@ export default function Products() {
         alignItems: "center",
       }}
     >
-      {/* Title */}
-      <Box textAlign="center" mb={6}>
+      <Box textAlign="center" mb={4}>
         <CommonTypography variant="h4" fontWeight="bold">
           All Products
         </CommonTypography>
       </Box>
 
+      {/* Category Filter */}
+      <Box
+        sx={{
+          display: "flex",
+          gap: 2,
+          justifyContent: "center",
+          mb: 4,
+          flexWrap: "wrap",
+        }}
+      >
+        {["All", ...categories].map((e) => (
+          <Chip
+            key={e}
+            label={e}
+            clickable
+            onClick={() => setSelectedCategory(e)}
+            sx={{
+              backgroundColor: selectedCategory === e ? "#D3744A" : "white",
+              color: selectedCategory === e ? "white" : "black",
+              fontWeight: "bold",
+              border: "1px solid #ccc",
+              "&:hover": {
+                backgroundColor: selectedCategory === e ? "#b85c36" : "#f5f5f5",
+              },
+            }}
+          />
+        ))}
+      </Box>
+
       {/* Products Grid */}
-      <Grid container spacing={4} justifyContent="center">
-        {products.map((product) => (
-          <Grid key={product.id} sx={{ flex: "1 1 250px", maxWidth: 250 }}>
+      <Grid
+        container
+        spacing={4}
+        maxWidth={1382}
+        minWidth={1382}
+        justifyContent="flex-start"
+      >
+        {filteredProducts.map((product) => (
+          <Grid key={product._id} sx={{ flex: "1 1 250px", maxWidth: 250 }}>
             <Card
               sx={{
                 backgroundColor: "#EEEDE7",
@@ -82,7 +155,6 @@ export default function Products() {
                 "&:hover .shop-btn": { opacity: 1 },
               }}
             >
-              {/* Chip */}
               {product.chip && (
                 <Chip
                   label={product.chip}
@@ -96,33 +168,32 @@ export default function Products() {
                   }}
                 />
               )}
-
-              {/* White background for image */}
               <Box sx={{ backgroundColor: "white", p: 3 }}>
                 <CardMedia
                   component="img"
                   alt={product.title}
-                  image={product.image}
-                  sx={{ width: "150px", height: "150px", objectFit: "contain", mx: "auto" }}
+                  image={`${API_BASE}${product.image}`}
+                  sx={{
+                    width: "150px",
+                    height: "150px",
+                    objectFit: "contain",
+                    mx: "auto",
+                  }}
                 />
               </Box>
-
-              {/* Product Info */}
               <CardContent sx={{ textAlign: "center" }}>
                 <Typography variant="h6" sx={{ fontSize: "1.2rem" }}>
                   {product.title}
                 </Typography>
                 <Typography variant="body1" sx={{ fontSize: "1rem", mt: 1 }}>
-                  {product.price}
+                  ₹{Number(product.price).toLocaleString("en-IN")}
                   <span style={{ textDecoration: "line-through", marginLeft: 8 }}>
-                    {product.originalPrice}
+                    ₹{Number(product.originalPrice).toLocaleString("en-IN")}
                   </span>
                 </Typography>
-
-                {/* Shop Now button with id in URL */}
                 <CommonButton
                   component={Link}
-                  to={`/shop/${product.id}`}
+                  to={`/shop/${product._id}`}
                   variant="contained"
                   startIcon={<ShoppingCart />}
                   className="shop-btn"
@@ -137,14 +208,157 @@ export default function Products() {
                 >
                   Shop Now
                 </CommonButton>
+
+                {/* Admin Edit/Delete Buttons */}
+                {user?.isAdmin && (
+                  <Box
+                    sx={{ mt: 2, display: "flex", gap: 1, justifyContent: "center" }}
+                  >
+                    <CommonButton
+                      component={Link}
+                      to={`/create-product/${product._id}`}
+                      variant="outlined"
+                      sx={{
+                        borderColor: "#1976d2",
+                        backgroundColor: "white",
+                        color: "#1976d2",
+                      }}
+                    >
+                      Edit
+                    </CommonButton>
+                    <CommonButton
+                      variant="outlined"
+                      sx={{
+                        borderColor: "#d32f2f",
+                        backgroundColor: "white",
+                        color: "#d32f2f",
+                      }}
+                      onClick={async () => {
+                        if (
+                          window.confirm("Are you sure you want to delete this product?")
+                        ) {
+                          try {
+                            await axios.delete(`${API_BASE}/api/products/${product._id}`, {
+                              headers: { Authorization: `Bearer ${user.token}` },
+                            });
+                            setProducts(products.filter((p) => p._id !== product._id));
+                          } catch (err) {
+                            alert("Failed to delete product");
+                          }
+                        }
+                      }}
+                    >
+                      Delete
+                    </CommonButton>
+                  </Box>
+                )}
               </CardContent>
             </Card>
           </Grid>
         ))}
       </Grid>
+
+      {/* Admin Buttons */}
+      {user?.isAdmin && (
+        <Box sx={{ mt: 6, display: "flex", gap: 2 }}>
+          <CommonButton
+            component={Link}
+            to="/create-product"
+            variant="contained"
+            startIcon={<Add />}
+            sx={{ backgroundColor: "#D3744A", "&:hover": { backgroundColor: "#b85c36" } }}
+          >
+            Create Product
+          </CommonButton>
+          <CommonButton
+            component={Link}
+            to="/categories"
+            variant="contained"
+            startIcon={<Add />}
+            sx={{ backgroundColor: "#1976d2", "&:hover": { backgroundColor: "#1565c0" } }}
+          >
+            Manage Categories
+          </CommonButton>
+        </Box>
+      )}
+
+      {/* Admin Discount Field */}
+      {user?.isAdmin && (
+        <Box sx={{ mt: 6, display: "flex", alignItems: "center", gap: 2 }}>
+          <TextField
+            label="Set Discount %"
+            type="number"
+            value={discount}
+            onChange={(e) => {
+              const val = e.target.value;
+              const num = val === "" ? 0 : Number(val);
+              if (num >= 0 && num <= 100) setDiscount(num);
+            }}
+            inputProps={{ min: 0, max: 100 }}
+            size="small"
+            sx={{ width: 150 }}
+          />
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={async () => {
+              try {
+                const token = localStorage.getItem("token");
+                await axios.post(
+                  `${API_BASE}/api/admin/discount`,
+                  { rate: discount },
+                  { headers: { Authorization: `Bearer ${token}` } }
+                );
+                alert("Discount updated successfully!");
+              } catch (err) {
+                console.error(err);
+                alert("Failed to update discount");
+              }
+            }}
+          >
+            Save Discount
+          </Button>
+        </Box>
+      )}
+
+      {/* Admin Platform Fee Field */}
+      {user?.isAdmin && (
+        <Box sx={{ mt: 4, display: "flex", alignItems: "center", gap: 2 }}>
+          <TextField
+            label="Set Platform Fee %"
+            type="number"
+            value={platformFee}
+            onChange={(e) => {
+              const val = e.target.value;
+              const num = val === "" ? 0 : Number(val);
+              if (num >= 0 && num <= 100) setPlatformFee(num);
+            }}
+            inputProps={{ min: 0, max: 100 }}
+            size="small"
+            sx={{ width: 150 }}
+          />
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={async () => {
+              try {
+                const token = localStorage.getItem("token");
+                await axios.post(
+                  `${API_BASE}/api/admin/platform-fee`,
+                  { rate: platformFee },
+                  { headers: { Authorization: `Bearer ${token}` } }
+                );
+                alert("Platform Fee updated successfully!");
+              } catch (err) {
+                console.error(err);
+                alert("Failed to update Platform Fee");
+              }
+            }}
+          >
+            Save Platform Fee
+          </Button>
+        </Box>
+      )}
     </Box>
   );
 }
-
-
-export { products };

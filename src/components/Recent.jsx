@@ -1,3 +1,5 @@
+import { useState, useEffect } from "react";
+import axios from "axios";
 import {
   Box,
   Typography,
@@ -9,65 +11,38 @@ import {
 } from "@mui/material";
 import { Link } from "react-router-dom";
 import { ShoppingCart } from "@mui/icons-material";
-import p1 from "../assets/p1.svg";
-import p2 from "../assets/p2.svg";
-import p3 from "../assets/p3.svg";
-import p4 from "../assets/p4.svg";
 import { CommonTypography, CommonButton } from "../components/CommonComponents";
 
-const products = [
-  {
-    id: 9,
-    title: "Microscope",
-    price: "$45.00 USD",
-    originalPrice: "$50.00 USD",
-    image: p1,
-    chip: "New",
-  },
-  {
-    id: 10,
-    title: "Pulse oximeter",
-    price: "$19.00 USD",
-    originalPrice: "$25.00 USD",
-    image: p2,
-    chip: "Save 10%",
-  },
-  {
-    id: 11,
-    title: "Vitamin serum",
-    price: "$20.00 USD",
-    originalPrice: "$30.00 USD",
-    image: p3,
-    chip: null,
-  },
-  {
-    id: 12,
-    title: "High protein",
-    price: "$50.00 USD",
-    originalPrice: "$60.00 USD",
-    image: p4,
-    chip: "New",
-  },
-];
+const API_BASE = "http://localhost:5000";
 
-export default function Recent({ title = "Products" }) {
+export default function Recent({ title = "Latest Products" }) {
+  const [products, setProducts] = useState([]);
+
+  useEffect(() => {
+    const fetchLatestProducts = async () => {
+      try {
+        const res = await axios.get(`${API_BASE}/api/products`);
+        // Sort by createdAt or _id descending and pick latest 4
+        const latestProducts = res.data
+          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+          .slice(0, 4);
+        setProducts(latestProducts);
+      } catch (err) {
+        console.error("Failed to fetch latest products:", err);
+      }
+    };
+    fetchLatestProducts();
+  }, []);
+
   return (
-    <Box
-      sx={{
-        padding: 4,
-        backgroundColor: "background.default",
-        textAlign: "center",
-      }}
-    >
-      {/* Title Centered */}
+    <Box sx={{ padding: 4, backgroundColor: "background.default", textAlign: "center" }}>
       <Box sx={{ mb: 4 }}>
         <CommonTypography variant="h4">{title}</CommonTypography>
       </Box>
 
-      {/* Products Grid */}
       <Grid container spacing={4} justifyContent="center">
-        {products.map((product, index) => (
-          <Grid item key={index} sx={{ flex: "1 1 250px", maxWidth: 250 }}>
+        {products.map((product) => (
+          <Grid key={product._id} sx={{ flex: "1 1 250px", maxWidth: 250 }}>
             <Card
               sx={{
                 backgroundColor: "#EEEDE7",
@@ -76,7 +51,6 @@ export default function Recent({ title = "Products" }) {
                 "&:hover .shop-btn": { opacity: 1 },
               }}
             >
-              {/* Chip (badge) */}
               {product.chip && (
                 <Chip
                   label={product.chip}
@@ -91,12 +65,11 @@ export default function Recent({ title = "Products" }) {
                 />
               )}
 
-              {/* White background only for image */}
               <Box sx={{ backgroundColor: "white", p: 2 }}>
                 <CardMedia
                   component="img"
                   alt={product.title}
-                  image={product.image}
+                  image={`${API_BASE}${product.image}`}
                   sx={{
                     width: "120px",
                     height: "120px",
@@ -106,21 +79,18 @@ export default function Recent({ title = "Products" }) {
                 />
               </Box>
 
-              {/* Product Info Section (keeps beige color) */}
               <CardContent>
                 <Typography variant="h6">{product.title}</Typography>
                 <Typography variant="body2" sx={{ mb: 1 }}>
-                  {product.price}
-                  <span
-                    style={{ textDecoration: "line-through", marginLeft: 8 }}
-                  >
-                    {product.originalPrice}
+                  ₹{Number(product.price).toLocaleString("en-IN")}
+                  <span style={{ textDecoration: "line-through", marginLeft: 8 }}>
+                    ₹{Number(product.originalPrice).toLocaleString("en-IN")}
                   </span>
                 </Typography>
 
                 <CommonButton
                   component={Link}
-                  to={`/shop/${product.id}`}
+                  to={`/shop/${product._id}`}
                   variant="contained"
                   startIcon={<ShoppingCart />}
                   className="shop-btn"

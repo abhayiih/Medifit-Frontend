@@ -1,49 +1,54 @@
-import { 
-  Box, 
-  Typography, 
-  Grid, 
-  Card, 
-  CardContent, 
-  CardMedia, 
-  TextField, 
-  Button, 
-  InputAdornment 
+import { useState, useEffect } from "react";
+import axios from "axios";
+import {
+  Box,
+  Typography,
+  Grid,
+  Card,
+  CardContent,
+  CardMedia,
+  TextField,
+  Button,
+  InputAdornment,
 } from "@mui/material";
-import { CommonTypography, CommonButton } from "../components/CommonComponents"; 
+import { CommonTypography, CommonButton } from "../components/CommonComponents";
 import { Email, ShoppingCart } from "@mui/icons-material";
-import product1 from "../assets/product1.svg";
-import product2 from "../assets/product2.svg";
-import product3 from "../assets/product3.svg";
-import product4 from "../assets/product4.svg";
-import product5 from "../assets/product5.svg";
-import product6 from "../assets/product6.svg";
-import product7 from "../assets/product7.svg";
-import product8 from "../assets/product8.svg";
-import newsletterImg from "../assets/newsletterImg.svg";
-import outside from '../assets/outside.svg';
 import { Link } from "react-router-dom";
+import newsletterImg from "../assets/newsletterImg.svg";
+import outside from "../assets/outside.svg";
 
-const products = [
-  { id:1,
-    title: "B12 medicine", price: "$19.00 USD", originalPrice: "$25.00 USD", image: product1 },
-  { id:2,title: "Tonometer", price: "$19.00 USD", originalPrice: "$30.00 USD", image: product2 },
-  {id:3, title: "ECG cardiograph", price: "$20.00 USD", originalPrice: "$30.00 USD", image: product3 },
-  {id:4, title: "Blood glucose meter", price: "$15.00 USD", originalPrice: "$25.00 USD", image: product4 },
-  { id:5,title: "Lab hand gloves", price: "$20.00 USD", originalPrice: "$25.00 USD", image: product5 },
-  { id:6,title: "Stethoscope", price: "$20.00 USD", originalPrice: "$28.00 USD", image: product6 },
-  {id:7, title: "Inhaler pressure drop ", price: "$35.00 USD", originalPrice: "$40.00 USD", image: product7 },
-  {id:8, title: "Multi vitamin", price: "$20.00 USD", originalPrice: "$25.00 USD", image: product8 },
-  {id:8, title: "Multi vitamin", price: "$20.00 USD", originalPrice: "$25.00 USD", image: product8 },
-];
+const API_BASE = "http://localhost:5000";
 
 export default function Store() {
+  const [products, setProducts] = useState([]);
+
+useEffect(() => {
+  const fetchProducts = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/api/products`);
+
+      // Sort by _id ascending (oldest first) and take only 8 products
+      const oldest8Products = res.data
+        .sort((a, b) => a._id.localeCompare(b._id))
+        .slice(0, 8);
+
+      setProducts(oldest8Products);
+    } catch (err) {
+      console.error("Failed to fetch products:", err);
+    }
+  };
+
+  fetchProducts();
+}, []);
+
+
   return (
-    <Box 
-      sx={{ 
-        padding: 4, 
-        backgroundColor: "background.default", 
-        display: "flex", 
-        flexDirection: "column", 
+    <Box
+      sx={{
+        padding: 4,
+        backgroundColor: "background.default",
+        display: "flex",
+        flexDirection: "column",
         alignItems: "center",
       }}
     >
@@ -54,33 +59,33 @@ export default function Store() {
         </CommonTypography>
       </Box>
 
-      {/* First Row */}
-      <Grid container spacing={4} maxWidth='1100px' justifyContent="flex-start">
-        {products.map((product, index) => (
-          <Grid key={index} size={{ xs: 12, sm: 6, md: 3 }}>
-            <Card 
-              sx={{ 
-                backgroundColor: "#EEEDE7", 
+      {/* Products Grid */}
+      <Grid container spacing={4} maxWidth="1100px" justifyContent="flex-start">
+        {products.map((product) => (
+          <Grid key={product._id} size={{ xs: 12, sm: 6, md: 3 }}>
+            <Card
+              sx={{
+                backgroundColor: "#EEEDE7",
                 width: 250,
-                height: 340, 
+                height: 340,
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "space-between",
                 position: "relative",
-                "&:hover .shop-btn": { opacity: 1 }, // button appears on hover
+                "&:hover .shop-btn": { opacity: 1 },
               }}
             >
-              {/* White background for image */}
+              {/* Image */}
               <Box sx={{ backgroundColor: "white", p: 3 }}>
                 <CardMedia
                   component="img"
                   alt={product.title}
-                  image={product.image}
+                  image={`${API_BASE}${product.image}`}
                   sx={{
                     width: "150px",
                     height: "150px",
                     objectFit: "contain",
-                    mx: "auto"
+                    mx: "auto",
                   }}
                 />
               </Box>
@@ -91,16 +96,15 @@ export default function Store() {
                   {product.title}
                 </Typography>
                 <Typography variant="body1" sx={{ fontSize: "1rem", mt: 1 }}>
-                  {product.price}
+                  ₹{Number(product.price).toLocaleString("en-IN")}
                   <span style={{ textDecoration: "line-through", marginLeft: 8 }}>
-                    {product.originalPrice}
+                    ₹{Number(product.originalPrice).toLocaleString("en-IN")}
                   </span>
                 </Typography>
 
-             
                 <CommonButton
                   component={Link}
-                 to={`/shop/${product.id}`}
+                  to={`/shop/${product._id}`}
                   variant="contained"
                   startIcon={<ShoppingCart />}
                   className="shop-btn"
@@ -131,18 +135,13 @@ export default function Store() {
           borderRadius: 2,
           alignItems: "flex-start",
           minHeight: 300,
-          maxWidth: "1100px", 
-          mx: 0 
+          maxWidth: "1100px",
+          mx: 0,
         }}
       >
         {/* Left Half - Image */}
         <Box sx={{ flex: 1 }}>
-          <Box
-            component="img"
-            src={newsletterImg}
-            alt="newsletter"
-            sx={{ width: "100%", height: "auto" }}
-          />
+          <Box component="img" src={newsletterImg} alt="newsletter" sx={{ width: "100%", height: "auto" }} />
         </Box>
 
         {/* Right Half - Text & Form */}
@@ -153,7 +152,7 @@ export default function Store() {
             flexDirection: "column",
             justifyContent: "space-between",
             height: "100%",
-            mt: 5
+            mt: 5,
           }}
         >
           <Box>
@@ -186,10 +185,10 @@ export default function Store() {
                 ),
               }}
             />
-            <Button  
-              endIcon={<img src={outside} alt="Logo" style={{ width: 20, height: 27 }} />} 
-              sx={{ flex: 1 }} 
-              variant="contained" 
+            <Button
+              endIcon={<img src={outside} alt="Logo" style={{ width: 20, height: 27 }} />}
+              sx={{ flex: 1 }}
+              variant="contained"
               color="primary"
             >
               Sign Up
