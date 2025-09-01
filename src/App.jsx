@@ -2,6 +2,9 @@ import { createBrowserRouter, RouterProvider, Outlet } from "react-router-dom";
 
 import Header from "./components/Header";
 import Footer from "./components/Footer";
+import RequireAdmin from "./components/RequireAdmin";
+import RedirectIfAuth from "./components/RedirectIfAuth.jsx";
+
 import HomePage from "./pages/HomePage";
 import HomePage2 from "./pages/HomePage2";
 import About from "./pages/About";
@@ -15,16 +18,9 @@ import UsersPage from "./pages/UsersPage";
 import Success from "./pages/Success";
 import Cancel from "./pages/Cancel";
 import OrdersPage from "./pages/OrdersPage";
-
-// Auth pages
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
-
-// Product create page
 import ProductCreatePage from "./pages/ProductCreatePage";
-import RequireAdmin from "./components/RequireAdmin";
-
-// Import CartPage
 import CartPage from "./pages/CartPage";
 
 const RootLayout = () => (
@@ -60,47 +56,19 @@ export default function App() {
         { path: "/success/:session_id", element: <Success /> },
         { path: "/cancel", element: <Cancel /> },
         { path: "/orders" ,element: <OrdersPage />} ,
-        {
-          path: "/users",
-          element: (
-            <RequireAdmin>
-              <UsersPage />
-            </RequireAdmin>
-          ),
-        },
-      ],
+        // Admin-protected route
+        { path: "/users", element: <RequireAdmin><UsersPage /></RequireAdmin>},
+        { path: "create-product", element:   <RequireAdmin><ProductCreatePage /></RequireAdmin>},
+        { path: "/create-product/:id", element:<RequireAdmin><ProductCreatePage /></RequireAdmin>},
+        { path: "/categories", element:<RequireAdmin><CategoriesPage /></RequireAdmin> },
+     ],
     },
-    // Auth routes (no Header/Footer)
-    { path: "/login", element: <LoginPage /> },
-    { path: "/register", element: <RegisterPage /> },
-    { path: "/forgot-password", element: <ForgotPasswordPage /> },
-    { path: "/reset-password/:token", element: <ResetPasswordPage /> },
 
-    // Admin-protected route
-    {
-      path: "create-product",
-      element: (
-        <RequireAdmin>
-          <ProductCreatePage />
-        </RequireAdmin>
-      ),
-    },
-    {
-      path: "/create-product/:id",
-      element: (
-        <RequireAdmin>
-          <ProductCreatePage />
-        </RequireAdmin>
-      ),
-    },
-    {
-      path: "/categories",
-      element: (
-        <RequireAdmin>
-          <CategoriesPage />
-        </RequireAdmin>
-      ),
-    },
+    // Auth routes (no Header/Footer)
+    { path: "/login", element: <RedirectIfAuth><LoginPage /></RedirectIfAuth> },
+    { path: "/register", element: <RedirectIfAuth><RegisterPage /></RedirectIfAuth> },
+    { path: "/forgot-password", element: <RedirectIfAuth><ForgotPasswordPage /></RedirectIfAuth> },
+    { path: "/reset-password/:token", element: <ResetPasswordPage /> },
   ]);
 
   return <RouterProvider router={router} />;
