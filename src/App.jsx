@@ -67,7 +67,7 @@ export default function App() {
     // Auth routes (no Header/Footer)
     { path: "/login", element: <RedirectIfAuth><LoginPage /></RedirectIfAuth> },
     { path: "/register", element: <RedirectIfAuth><RegisterPage /></RedirectIfAuth> },
-    { path: "/forgot-password", element: <RedirectIfAuth><ForgotPasswordPage /></RedirectIfAuth> },
+    { path: "/forgot-password", element: <ForgotPasswordPage />},
     { path: "/reset-password/:token", element: <ResetPasswordPage /> },
   ]);
 

@@ -3,9 +3,13 @@ import axios from "axios";
 import {
   Box,
   Typography,
-  Card,
-  CardContent,
-  Grid,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
   Divider,
 } from "@mui/material";
 
@@ -41,66 +45,74 @@ const OrdersPage = () => {
       {orders.length === 0 ? (
         <Typography>No orders found.</Typography>
       ) : (
-        <Grid container spacing={3}>
-          {orders.map((order) => (
-            <Grid size={{xs:12}} key={order._id}>
-              <Card sx={{ borderRadius: 2, boxShadow: 3 }}>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    Order ID: {order._id}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Placed on: {new Date(order.createdAt).toLocaleString()}
-                  </Typography>
+        orders.map((order) => (
+          <Paper
+            key={order._id}
+            sx={{
+              mb: 4,
+              p: 3,
+              border: "1px solid #ddd",
+              borderRadius: 2,
+              boxShadow: 2,
+            }}
+          >
+            {/* Order Header */}
+            <Typography variant="h6" gutterBottom>
+              Order ID: {order._id}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Placed on: {new Date(order.createdAt).toLocaleString()}
+            </Typography>
 
-                  <Divider sx={{ my: 2 }} />
+            {/* Items Table */}
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: "bold" }}>Item</TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>Quantity</TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>Price</TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>Total</TableCell>
+                  </TableRow>
+                </TableHead>
 
-                  <Typography variant="subtitle1" gutterBottom>
-                    Shipping Address
-                  </Typography>
-                  <Typography variant="body2">
-                    {order.shippingAddress.address},{" "}
-                    {order.shippingAddress.city},{" "}
-                    {order.shippingAddress.state},{" "}
-                    {order.shippingAddress.country},{" "}
-                    {order.shippingAddress.pincode}
-                  </Typography>
-
-                  <Divider sx={{ my: 2 }} />
-
-                  <Typography variant="subtitle1" gutterBottom>
-                    Items
-                  </Typography>
+                <TableBody>
                   {order.items.map((item) => (
-                    <Typography key={item._id} variant="body2">
-                      {item.productId?.title} × {item.quantity} = ₹
-                      {item.productId?.price * item.quantity}
-                    </Typography>
+                    <TableRow key={item._id}>
+                      <TableCell>{item.productId?.title}</TableCell>
+                      <TableCell>{item.quantity}</TableCell>
+                      <TableCell>₹{item.productId?.price}</TableCell>
+                      <TableCell>
+                        ₹{item.productId?.price * item.quantity}
+                      </TableCell>
+                    </TableRow>
                   ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
 
-                  <Divider sx={{ my: 2 }} />
+            <Divider sx={{ my: 2 }} />
 
-                  <Typography variant="body2">
-                    Subtotal: ₹{order.subtotal}
-                  </Typography>
-                  <Typography variant="body2">
-                    Platform Fee ({order.platformFeePercent}%): ₹{order.platformFee}
-                  </Typography>
-                  <Typography variant="body2">GST(18%): ₹{order.gst}</Typography>
-                  <Typography variant="h6" sx={{ mt: 1 }}>
-                    Total: ₹{order.totalAmount}
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    color={order.paymentStatus === "Success" ? "green" : "red"}
-                  >
-                    Payment Status: {order.paymentStatus}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
+            {/* Order Summary */}
+            <Typography variant="body2">Subtotal: ₹{order.subtotal}</Typography>
+            <Typography variant="body2">
+              Platform Fee ({order.platformFeePercent}%): ₹{order.platformFee}
+            </Typography>
+            <Typography variant="body2">GST(18%): ₹{order.gst}</Typography>
+            <Typography variant="h6" sx={{ mt: 1 }}>
+              Total: ₹{order.totalAmount}
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{
+                color: order.paymentStatus === "Success" ? "green" : "red",
+                fontWeight: "bold",
+              }}
+            >
+              Payment Status: {order.paymentStatus}
+            </Typography>
+          </Paper>
+        ))
       )}
     </Box>
   );
