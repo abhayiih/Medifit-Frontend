@@ -46,7 +46,7 @@ export default function App() {
       element: <RootLayout />,
       children: [
         { path: "/", element: <HomePage /> },
-        { path: "home2", element: <HomePage2 /> },
+        { path: "info", element: <HomePage2 /> },
         { path: "shop/:id", element: <Shop /> },
         { path: "shop", element: <Shop /> },
         { path: "about", element: <About /> },
@@ -55,7 +55,7 @@ export default function App() {
         { path: "cart", element: <CartPage /> },
         { path: "/success/:session_id", element: <Success /> },
         { path: "/cancel", element: <Cancel /> },
-        { path: "/orders" ,element: <OrdersPage />} ,
+        { path: "/orders" ,element: <OrdersPage />},
         // Admin-protected route
         { path: "/users", element: <RequireAdmin><UsersPage /></RequireAdmin>},
         { path: "create-product", element:   <RequireAdmin><ProductCreatePage /></RequireAdmin>},

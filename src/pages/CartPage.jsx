@@ -9,17 +9,19 @@ import {
   CardContent,
   CardMedia,
   Container,
+  IconButton,
 } from "@mui/material";
+import { ArrowDropUp, ArrowDropDown } from "@mui/icons-material";
 import axios from "axios";
 import * as Yup from "yup";
 import { loadStripe } from "@stripe/stripe-js";
+import { CircularProgress } from "@mui/material";
 
 const API_BASE = "http://localhost:5000";
 const stripePromise = loadStripe(
   "pk_test_51S1LGVP8eFzhG8FyqVqZ5wtewUAXiXxU0OnyOf12vRpUOcxNAZe0peuZ9FGlRtP2wlvf9qAB3OHmQEvJrtLjlaEX00Z9Juem7W"
 );
 
-// Yup validation schema
 const schema = Yup.object().shape({
   address: Yup.string().required("Address is required"),
   city: Yup.string().required("City is required"),
@@ -33,6 +35,8 @@ const schema = Yup.object().shape({
 export default function CartPage() {
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [orderLoading, setOrderLoading] = useState(false);
+
   const [form, setForm] = useState({
     address: "",
     city: "",
@@ -41,9 +45,8 @@ export default function CartPage() {
     pincode: "",
   });
   const [errors, setErrors] = useState({});
-  const [platformFeeRate, setPlatformFeeRate] = useState(0); // ✅ Platform Fee % dynamic
+  const [platformFeeRate, setPlatformFeeRate] = useState(0);
 
-  // Fetch cart items
   const fetchCart = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -59,7 +62,6 @@ export default function CartPage() {
     }
   };
 
-  // Fetch platform fee percentage (from admin API)
   const fetchPlatformFee = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -81,56 +83,72 @@ export default function CartPage() {
     return () => window.removeEventListener("cartUpdated", handleCartUpdated);
   }, []);
 
-  // Handle form change
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-const handleSubmit = async () => {
-  try {
-    await schema.validate(form, { abortEarly: false });
-    setErrors({});
+  const handleSubmit = async () => {
+    try {
+      await schema.validate(form, { abortEarly: false });
+      setErrors({});
+      setOrderLoading(true); // start loading
 
-    const token = localStorage.getItem("token");
-    if (!token) {
-      alert("You need to login first");
-      return;
+      const token = localStorage.getItem("token");
+      if (!token) {
+        alert("You need to login first");
+        setOrderLoading(false);
+        return;
+      }
+
+      const { subtotal, gst, platformFee, total } = calculateSummary();
+
+      const { data } = await axios.post(
+        `${API_BASE}/api/payment/create-checkout-session`,
+        {
+          amount: total,
+          shippingAddress: form,
+          subtotal,
+          gst,
+          platformFee,
+          platformFeePercent: platformFeeRate,
+          userId: JSON.parse(localStorage.getItem("user"))._id,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const stripe = await stripePromise;
+      const { error } = await stripe.redirectToCheckout({ sessionId: data.id });
+      if (error) {
+        console.error(error);
+        alert("Payment failed, please try again");
+        setOrderLoading(false); // stop if error
+      }
+    } catch (validationError) {
+      const errs = {};
+      validationError.inner?.forEach((err) => {
+        errs[err.path] = err.message;
+      });
+      setErrors(errs);
+      setOrderLoading(false); // stop if validation fails
     }
+  };
 
-    const { subtotal, gst, platformFee, total } = calculateSummary();
-
-    // Only create Stripe session, NO order creation
-    const { data } = await axios.post(
-      `${API_BASE}/api/payment/create-checkout-session`,
-      {
-        amount: total,
-        shippingAddress: form,
-        subtotal,
-        gst,
-        platformFee,
-        platformFeePercent: platformFeeRate,
-        userId: JSON.parse(localStorage.getItem("user"))._id,
-      },
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-
-    const stripe = await stripePromise;
-    const { error } = await stripe.redirectToCheckout({ sessionId: data.id });
-    if (error) {
-      console.error(error);
-      alert("Payment failed, please try again");
+  const updateQuantity = async (productId, newQty) => {
+    try {
+      if (newQty < 1) return;
+      const token = localStorage.getItem("token");
+      await axios.patch(
+        `${API_BASE}/api/cart/item/${productId}`,
+        { quantity: newQty },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      fetchCart();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update quantity");
     }
-  } catch (validationError) {
-    const errs = {};
-    validationError.inner?.forEach((err) => {
-      errs[err.path] = err.message;
-    });
-    setErrors(errs);
-  }
-};
-
-
+  };
 
   const removeItem = async (productId) => {
     try {
@@ -139,6 +157,11 @@ const handleSubmit = async () => {
       await axios.delete(`${API_BASE}/api/cart/item/${productId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+
+      // Refresh local cart
+      fetchCart();
+
+      // Notify other components (like cart badge) globally
       window.dispatchEvent(new CustomEvent("cartUpdated"));
     } catch (err) {
       console.error(err);
@@ -146,7 +169,6 @@ const handleSubmit = async () => {
     }
   };
 
-  // Calculate summary
   const calculateSummary = () => {
     let subtotal = 0;
     cartItems.forEach((item) => {
@@ -181,7 +203,6 @@ const handleSubmit = async () => {
         </Typography>
       ) : (
         <>
-          {/* Cart Items */}
           <Grid container spacing={4} sx={{ mb: 6 }}>
             {cartItems.map((item) => (
               <Grid
@@ -190,7 +211,6 @@ const handleSubmit = async () => {
               >
                 <Card
                   sx={{
-                    backgroundColor: "#EEEDE7",
                     display: "flex",
                     flexDirection: "column",
                     justifyContent: "space-between",
@@ -216,17 +236,67 @@ const handleSubmit = async () => {
                     />
                   </Box>
 
-                  <CardContent sx={{ textAlign: "center" }}>
-                    <Typography variant="h6">{item.productId?.title}</Typography>
-                    <Typography>Qty: {item.quantity}</Typography>
-                    <Typography>
+                  <CardContent
+                    sx={{
+                      textAlign: "center",
+                      height: 170,
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <Typography
+                      variant="h6"
+                      sx={{
+                        fontSize: "clamp(0.7rem, 1.2vw, 1rem)",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                      title={item.productId?.title}
+                    >
+                      {item.productId?.title}
+                    </Typography>
+
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        gap: 1,
+                        mt: 1,
+                      }}
+                    >
+                      <IconButton
+                        onClick={() =>
+                          updateQuantity(item.productId._id, item.quantity - 1)
+                        }
+                      >
+                        <ArrowDropDown />
+                      </IconButton>
+                      <Typography>{item.quantity}</Typography>
+                      <IconButton
+                        onClick={() =>
+                          updateQuantity(item.productId._id, item.quantity + 1)
+                        }
+                      >
+                        <ArrowDropUp />
+                      </IconButton>
+                    </Box>
+
+                    <Typography sx={{ mt: 1 }}>
                       ₹{item.productId?.price?.toLocaleString("en-IN")}
                       <span
-                        style={{ textDecoration: "line-through", marginLeft: 8 }}
+                        style={{
+                          textDecoration: "line-through",
+                          marginLeft: 8,
+                        }}
                       >
-                        ₹{item.productId?.originalPrice?.toLocaleString("en-IN")}
+                        ₹
+                        {item.productId?.originalPrice?.toLocaleString("en-IN")}
                       </span>
                     </Typography>
+
                     <Button
                       variant="outlined"
                       color="error"
@@ -241,7 +311,7 @@ const handleSubmit = async () => {
             ))}
           </Grid>
 
-          {/* Shipping + Order Summary Below Cart */}
+          {/* Shipping + Order Summary */}
           <Box
             sx={{
               display: "flex",
@@ -250,9 +320,8 @@ const handleSubmit = async () => {
               mt: 6,
             }}
           >
-            {/* Shipping Form */}
             <Box sx={{ flex: 1 }}>
-              <Card sx={{ p: 4 }}>
+              <Card sx={{ p: 4, border: "2px solid #4a392aff" }}>
                 <Typography variant="h5" fontWeight="bold" sx={{ mb: 2 }}>
                   Shipping Address
                 </Typography>
@@ -276,16 +345,20 @@ const handleSubmit = async () => {
                     color="primary"
                     onClick={handleSubmit}
                     fullWidth
+                    disabled={orderLoading} // disable while loading
                   >
-                    Place Order & Pay ₹{total.toLocaleString("en-IN")}
+                    {orderLoading ? (
+                      <CircularProgress size={24} sx={{ color: "white" }} />
+                    ) : (
+                      `Place Order & Pay ₹${total.toLocaleString("en-IN")}`
+                    )}
                   </Button>
                 </Box>
               </Card>
             </Box>
 
-            {/* Order Summary */}
             <Box sx={{ flex: 1 }}>
-              <Card sx={{ p: 4 }}>
+              <Card sx={{ p: 4, border: "2px solid #4a392aff" }}>
                 <Typography variant="h5" fontWeight="bold" sx={{ mb: 2 }}>
                   Order Summary
                 </Typography>
@@ -296,7 +369,7 @@ const handleSubmit = async () => {
                       sx={{
                         display: "flex",
                         justifyContent: "space-between",
-                        borderBottom: "1px solid #ddd",
+                        borderBottom: "1px solid #dabcbcff",
                         pb: 1,
                       }}
                     >
@@ -321,11 +394,15 @@ const handleSubmit = async () => {
                     <Typography fontWeight="bold">Subtotal:</Typography>
                     <Typography>₹{subtotal.toLocaleString("en-IN")}</Typography>
                   </Box>
-                  <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                  <Box
+                    sx={{ display: "flex", justifyContent: "space-between" }}
+                  >
                     <Typography>GST (18%):</Typography>
                     <Typography>+₹{gst.toLocaleString("en-IN")}</Typography>
                   </Box>
-                  <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                  <Box
+                    sx={{ display: "flex", justifyContent: "space-between" }}
+                  >
                     <Typography>Platform Fee ({platformFeeRate}%):</Typography>
                     <Typography>
                       +₹{platformFee.toLocaleString("en-IN")}

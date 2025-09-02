@@ -42,7 +42,7 @@ export default function OurStory() {
           >
             Our store offers a comprehensive range of pharmaceuticals, health
             and wellness products, and medical supplies to meet the diverse
-            needs of our community.
+            needs of our community. 
           </Typography>
 
           <CommonButton

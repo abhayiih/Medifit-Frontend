@@ -35,7 +35,7 @@ export default function Success() {
         // Save orderId for invoice actions
         setOrderId(createdOrder._id);
 
-        // ✅ Dispatch cartUpdated so Header badge updates immediately
+        // Dispatch cartUpdated so Header badge updates immediately
         window.dispatchEvent(new CustomEvent("cartUpdated"));
 
       } catch (err) {

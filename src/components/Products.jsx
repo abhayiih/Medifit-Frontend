@@ -21,8 +21,9 @@ export default function Products() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const [discount, setDiscount] = useState(0); // existing discount
-  const [platformFee, setPlatformFee] = useState(0); // new platform fee
+  const [searchTerm, setSearchTerm] = useState(""); // New search term state
+  const [discount, setDiscount] = useState(0);
+  const [platformFee, setPlatformFee] = useState(0);
   const user = JSON.parse(localStorage.getItem("user"));
 
   // Fetch products
@@ -85,10 +86,45 @@ export default function Products() {
     fetchPlatformFee();
   }, []);
 
-  const filteredProducts =
-    selectedCategory === "All"
-      ? products
-      : products.filter((p) => p.category === selectedCategory);
+  // Listen for search input from Header
+  useEffect(() => {
+    const handleSearch = (e) => {
+      setSearchTerm(e.detail.toLowerCase());
+    };
+    window.addEventListener("searchUpdated", handleSearch);
+    return () => window.removeEventListener("searchUpdated", handleSearch);
+  }, []);
+
+  const normalize = (str) => str.replace(/\s+/g, "").toLowerCase();
+
+  // Filter products by category and search term
+  const filteredProducts = products
+    .filter(
+      (p) => selectedCategory === "All" || p.category === selectedCategory
+    )
+    .filter((p) => normalize(p.title).startsWith(normalize(searchTerm)));
+
+  // Add to Cart Function
+  const handleAddToCart = async (product) => {
+    try {
+      const userStr = localStorage.getItem("user");
+      const user = userStr ? JSON.parse(userStr) : null;
+      if (!user || !user.token)
+        return alert("Please login to add products to the cart");
+
+      await axios.post(
+        `${API_BASE}/api/cart/add`,
+        { productId: product._id, quantity: 1 },
+        { headers: { Authorization: `Bearer ${user.token}` } }
+      );
+
+      window.dispatchEvent(new CustomEvent("cartUpdated"));
+      alert("Product added to cart!");
+    } catch (err) {
+      console.error(err);
+      alert("Something went wrong while adding to cart");
+    }
+  };
 
   return (
     <Box
@@ -136,127 +172,175 @@ export default function Products() {
       </Box>
 
       {/* Products Grid */}
-      <Grid
-        container
-        spacing={4}
-        maxWidth={1382}
-        minWidth={1382}
-        justifyContent="flex-start"
-      >
-        {filteredProducts.map((product) => (
-          <Grid key={product._id} sx={{ flex: "1 1 250px", maxWidth: 250 }}>
-            <Card
-              sx={{
-                backgroundColor: "#EEEDE7",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                position: "relative",
-                "&:hover .shop-btn": { opacity: 1 },
-              }}
-            >
-              {product.chip && (
-                <Chip
-                  label={product.chip}
-                  sx={{
-                    position: "absolute",
-                    top: 8,
-                    left: 8,
-                    backgroundColor: "#D3744A",
-                    color: "white",
-                    fontWeight: "bold",
-                  }}
-                />
-              )}
-              <Box sx={{ backgroundColor: "white", p: 3 }}>
-                <CardMedia
-                  component="img"
-                  alt={product.title}
-                  image={`${API_BASE}${product.image}`}
-                  sx={{
-                    width: "150px",
-                    height: "150px",
-                    objectFit: "contain",
-                    mx: "auto",
-                  }}
-                />
-              </Box>
-              <CardContent sx={{ textAlign: "center" }}>
-                <Typography variant="h6" sx={{ fontSize: "1.2rem" }}>
-                  {product.title}
-                </Typography>
-                <Typography variant="body1" sx={{ fontSize: "1rem", mt: 1 }}>
-                  ₹{Number(product.price).toLocaleString("en-IN")}
-                  <span style={{ textDecoration: "line-through", marginLeft: 8 }}>
-                    ₹{Number(product.originalPrice).toLocaleString("en-IN")}
-                  </span>
-                </Typography>
-                <CommonButton
-                  component={Link}
-                  to={`/shop/${product._id}`}
-                  variant="contained"
-                  startIcon={<ShoppingCart />}
-                  className="shop-btn"
-                  sx={{
-                    mt: 2,
-                    opacity: 0,
-                    transition: "opacity 0.3s",
-                    backgroundColor: "#D3744A",
-                    "&:hover": { backgroundColor: "#b85c36" },
-                    width: "100%",
-                  }}
-                >
-                  Shop Now
-                </CommonButton>
-
-                {/* Admin Edit/Delete Buttons */}
-                {user?.isAdmin && (
-                  <Box
-                    sx={{ mt: 2, display: "flex", gap: 1, justifyContent: "center" }}
-                  >
-                    <CommonButton
-                      component={Link}
-                      to={`/create-product/${product._id}`}
-                      variant="outlined"
-                      sx={{
-                        borderColor: "#1976d2",
-                        backgroundColor: "white",
-                        color: "#1976d2",
-                      }}
-                    >
-                      Edit
-                    </CommonButton>
-                    <CommonButton
-                      variant="outlined"
-                      sx={{
-                        borderColor: "#d32f2f",
-                        backgroundColor: "white",
-                        color: "#d32f2f",
-                      }}
-                      onClick={async () => {
-                        if (
-                          window.confirm("Are you sure you want to delete this product?")
-                        ) {
-                          try {
-                            await axios.delete(`${API_BASE}/api/products/${product._id}`, {
-                              headers: { Authorization: `Bearer ${user.token}` },
-                            });
-                            setProducts(products.filter((p) => p._id !== product._id));
-                          } catch (err) {
-                            alert("Failed to delete product");
-                          }
-                        }
-                      }}
-                    >
-                      Delete
-                    </CommonButton>
-                  </Box>
+      {filteredProducts.length === 0 ? (
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            minHeight: "300px",
+          }}
+        >
+          <Typography variant="h5" color="text.secondary">
+            No Product Found
+          </Typography>
+        </Box>
+      ) : (
+        <Grid
+          container
+          spacing={4}
+          maxWidth={1100}
+          minWidth={1100}
+          justifyContent="flex-start"
+        >
+          {filteredProducts.map((product) => (
+            <Grid key={product._id} sx={{ flex: "1 1 250px", maxWidth: 250 }}>
+              <Card
+                sx={{
+                  backgroundColor: "#EEEDE7",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "flex-start",
+                  position: "relative",
+                  "&:hover .shop-btn": { opacity: 1 },
+                }}
+              >
+                {product.chip && (
+                  <Chip
+                    label={product.chip}
+                    sx={{
+                      position: "absolute",
+                      top: 8,
+                      left: 8,
+                      backgroundColor: "#D3744A",
+                      color: "white",
+                      fontWeight: "bold",
+                    }}
+                  />
                 )}
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
+                <Box sx={{ backgroundColor: "white", p: 3 }}>
+                  <CardMedia
+                    component="img"
+                    alt={product.title}
+                    image={`${API_BASE}${product.image}`}
+                    sx={{
+                      width: "150px",
+                      height: "150px",
+                      objectFit: "contain",
+                      mx: "auto",
+                    }}
+                  />
+                </Box>
+                <CardContent sx={{ textAlign: "center" }}>
+                  <Typography variant="h6" sx={{ fontSize: "1.2rem" }}>
+                    {product.title}
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontSize: "1rem", mt: 1 }}>
+                    ₹{Number(product.price).toLocaleString("en-IN")}
+                    <span
+                      style={{ textDecoration: "line-through", marginLeft: 8 }}
+                    >
+                      ₹{Number(product.originalPrice).toLocaleString("en-IN")}
+                    </span>
+                  </Typography>
+
+                  {/* Add to Cart Button */}
+                  <Button
+                    variant="contained"
+                    startIcon={<ShoppingCart />}
+                    sx={{
+                      mt: 2,
+                      backgroundColor: "#4CAF50",
+                      "&:hover": { backgroundColor: "#45A049" },
+                      width: "100%",
+                    }}
+                    onClick={() => handleAddToCart(product)}
+                  >
+                    Add to Cart
+                  </Button>
+
+                  {/* Shop Now Button */}
+                  <CommonButton
+                    component={Link}
+                    to={`/shop/${product._id}`}
+                    variant="contained"
+                    startIcon={<ShoppingCart />}
+                    className="shop-btn"
+                    sx={{
+                      mt: 2,
+                      opacity: 0,
+                      transition: "opacity 0.3s",
+                      backgroundColor: "#D3744A",
+                      "&:hover": { backgroundColor: "#b85c36" },
+                      width: "100%",
+                    }}
+                  >
+                    Shop Now
+                  </CommonButton>
+
+                  {/* Admin Edit/Delete Buttons */}
+                  {user?.isAdmin && (
+                    <Box
+                      sx={{
+                        mt: 2,
+                        display: "flex",
+                        gap: 1,
+                        justifyContent: "center",
+                      }}
+                    >
+                      <CommonButton
+                        component={Link}
+                        to={`/create-product/${product._id}`}
+                        variant="outlined"
+                        sx={{
+                          borderColor: "#1976d2",
+                          backgroundColor: "white",
+                          color: "#1976d2",
+                        }}
+                      >
+                        Edit
+                      </CommonButton>
+                      <CommonButton
+                        variant="outlined"
+                        sx={{
+                          borderColor: "#d32f2f",
+                          backgroundColor: "white",
+                          color: "#d32f2f",
+                        }}
+                        onClick={async () => {
+                          if (
+                            window.confirm(
+                              "Are you sure you want to delete this product?"
+                            )
+                          ) {
+                            try {
+                              await axios.delete(
+                                `${API_BASE}/api/products/${product._id}`,
+                                {
+                                  headers: {
+                                    Authorization: `Bearer ${user.token}`,
+                                  },
+                                }
+                              );
+                              setProducts(
+                                products.filter((p) => p._id !== product._id)
+                              );
+                            } catch (err) {
+                              alert("Failed to delete product");
+                            }
+                          }
+                        }}
+                      >
+                        Delete
+                      </CommonButton>
+                    </Box>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      )}
 
       {/* Admin Buttons */}
       {user?.isAdmin && (
@@ -266,7 +350,10 @@ export default function Products() {
             to="/create-product"
             variant="contained"
             startIcon={<Add />}
-            sx={{ backgroundColor: "#D3744A", "&:hover": { backgroundColor: "#b85c36" } }}
+            sx={{
+              backgroundColor: "#D3744A",
+              "&:hover": { backgroundColor: "#b85c36" },
+            }}
           >
             Create Product
           </CommonButton>
@@ -275,7 +362,10 @@ export default function Products() {
             to="/categories"
             variant="contained"
             startIcon={<Add />}
-            sx={{ backgroundColor: "#1976d2", "&:hover": { backgroundColor: "#1565c0" } }}
+            sx={{
+              backgroundColor: "#1976d2",
+              "&:hover": { backgroundColor: "#1565c0" },
+            }}
           >
             Manage Categories
           </CommonButton>
