@@ -4,6 +4,8 @@ import {
   Box,
   Typography,
   Button,
+  Select,
+  MenuItem,
   Table,
   TableBody,
   TableCell,
@@ -13,8 +15,8 @@ import {
   Paper,
 } from "@mui/material";
 
-const OrdersPage = () => {
-  const user = JSON.parse(localStorage.getItem("user"));
+const ViewOrdersPage = () => {
+  const user = JSON.parse(localStorage.getItem("user")); // admin user
   const [orders, setOrders] = useState([]);
 
   useEffect(() => {
@@ -29,9 +31,29 @@ const OrdersPage = () => {
       }
     };
 
-    if (user) fetchOrders();
-  }, [user?.token]);
+    if (user?.isAdmin) fetchOrders(); // Only fetch if admin
+  }, [user?.token, user?.isAdmin]);
 
+  const updateStatus = async (orderId, newStatus) => {
+    try {
+      const res = await axios.put(
+        `http://localhost:5000/api/orders/${orderId}/status`,
+        { status: newStatus },
+        { headers: { Authorization: `Bearer ${user.token}` } }
+      );
+       
+      
+      setOrders((prev) =>
+        prev.map((order) =>
+          order._id === orderId ? { ...order, status: res.data.status } : order
+        )
+      );
+    } catch (err) {
+      console.error("Failed to update order status", err);
+    }
+  };
+  
+  
   const viewInvoice = async (orderId) => {
     try {
       const res = await axios.get(
@@ -70,37 +92,56 @@ const OrdersPage = () => {
     }
   };
 
-  if (!user) {
-    return <Typography>Please login to view your orders.</Typography>;
+  if (!user?.isAdmin) {
+    return <Typography>You are not authorized to view this page.</Typography>;
   }
 
   return (
     <Box sx={{ p: 4 }}>
       <Typography variant="h4" mb={3}>
-        My Orders
+        All Orders
       </Typography>
 
       {orders.length === 0 ? (
         <Typography>No orders found.</Typography>
       ) : (
         <TableContainer component={Paper}>
-          <Table sx={{ border: "1px solid #b59f9fff" }}>
+          <Table sx={{ border: "1px solid #000" }}>
             <TableHead>
               <TableRow>
-                <TableCell sx={{ border: "1px solid #000" }}><strong>Order ID</strong></TableCell>
-                <TableCell sx={{ border: "1px solid #000" }}><strong>Date</strong></TableCell>
-                <TableCell sx={{ border: "1px solid #000" }}><strong>Status</strong></TableCell>
-                <TableCell sx={{ border: "1px solid #000" }} align="center"><strong>Actions</strong></TableCell>
+                <TableCell sx={{ border: "1px solid #000", fontWeight: "bold" }}>Order ID</TableCell>
+                <TableCell sx={{ border: "1px solid #000", fontWeight: "bold" }}>Date</TableCell>
+                <TableCell sx={{ border: "1px solid #000", fontWeight: "bold" }}>User</TableCell>
+                <TableCell sx={{ border: "1px solid #000", fontWeight: "bold" }}>Status</TableCell>
+                <TableCell sx={{ border: "1px solid #000", fontWeight: "bold" }} align="center">
+                  Actions
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {orders.map((order) => (
                 <TableRow key={order._id}>
-                  <TableCell sx={{ border: "1px solid #000" }} >{order._id}</TableCell>
+                  <TableCell sx={{ border: "1px solid #000" }}>{order._id}</TableCell>
                   <TableCell sx={{ border: "1px solid #000" }}>
                     {new Date(order.createdAt).toLocaleString()}
                   </TableCell>
-                  <TableCell sx={{ border: "1px solid #000" }}>{order.status}</TableCell>
+                  <TableCell sx={{ border: "1px solid #000" }}>
+                    {order.userId.username || order.userId.email || order.userId}
+                  </TableCell>
+                  <TableCell sx={{ border: "1px solid #000" }}>
+                    <Select
+                      value={order.status}
+                      onChange={(e) => updateStatus(order._id, e.target.value)}
+                      size="small"
+                      sx={{ minWidth: 150 }}
+                    >
+                      <MenuItem value="Pending">Pending</MenuItem>
+                      <MenuItem value="Approved">Approved</MenuItem>
+                      <MenuItem value="Rejected">Rejected</MenuItem>
+                      <MenuItem value="Shipped">Shipped</MenuItem>
+                      <MenuItem value="Delivered">Delivered</MenuItem>
+                    </Select>
+                  </TableCell>
                   <TableCell sx={{ border: "1px solid #000" }} align="center">
                     <Button
                       variant="customOutlined"
@@ -126,4 +167,4 @@ const OrdersPage = () => {
   );
 };
 
-export default OrdersPage;
+export default ViewOrdersPage;

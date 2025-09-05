@@ -22,6 +22,8 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import ProductCreatePage from "./pages/ProductCreatePage";
 import CartPage from "./pages/CartPage";
+import ViewOrdersPage from "./pages/ViewOrdersPage";
+
 
 const RootLayout = () => (
   <div
@@ -55,7 +57,9 @@ export default function App() {
         { path: "cart", element: <CartPage /> },
         { path: "/success/:session_id", element: <Success /> },
         { path: "/cancel", element: <Cancel /> },
-        { path: "/orders" ,element: <OrdersPage />},
+        { path: "/orders" ,element: <OrdersPage />}, 
+        { path:"/admin/orders" ,element:<ViewOrdersPage />} ,
+
         // Admin-protected route
         { path: "/users", element: <RequireAdmin><UsersPage /></RequireAdmin>},
         { path: "create-product", element:   <RequireAdmin><ProductCreatePage /></RequireAdmin>},

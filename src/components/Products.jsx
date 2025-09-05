@@ -21,9 +21,10 @@ export default function Products() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const [searchTerm, setSearchTerm] = useState(""); // New search term state
+  const [searchTerm, setSearchTerm] = useState("");
   const [discount, setDiscount] = useState(0);
   const [platformFee, setPlatformFee] = useState(0);
+  const [cartItems, setCartItems] = useState([]);
   const user = JSON.parse(localStorage.getItem("user"));
 
   // Fetch products
@@ -51,7 +52,7 @@ export default function Products() {
     };
     fetchCategories();
   }, []);
-
+  
   // Fetch admin discount
   useEffect(() => {
     const fetchDiscount = async () => {
@@ -95,16 +96,27 @@ export default function Products() {
     return () => window.removeEventListener("searchUpdated", handleSearch);
   }, []);
 
-  const normalize = (str) => str.replace(/\s+/g, "").toLowerCase();
+  // Fetch cart
+  const fetchCartItems = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      const { data } = await axios.get(`${API_BASE}/api/cart`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setCartItems(data.items || []);
+    } catch (err) {
+      console.error("Error fetching cart items:", err);
+    }
+  };
 
-  // Filter products by category and search term
-  const filteredProducts = products
-    .filter(
-      (p) => selectedCategory === "All" || p.category === selectedCategory
-    )
-    .filter((p) => normalize(p.title).startsWith(normalize(searchTerm)));
+  useEffect(() => {
+    fetchCartItems();
+  }, []);
 
-  // Add to Cart Function
+  const getCartItem = (productId) =>
+    cartItems.find((item) => item.productId._id === productId);
+
   const handleAddToCart = async (product) => {
     try {
       const userStr = localStorage.getItem("user");
@@ -112,19 +124,69 @@ export default function Products() {
       if (!user || !user.token)
         return alert("Please login to add products to the cart");
 
-      await axios.post(
-        `${API_BASE}/api/cart/add`,
-        { productId: product._id, quantity: 1 },
-        { headers: { Authorization: `Bearer ${user.token}` } }
-      );
+      const existing = getCartItem(product._id);
+      if (existing) {
+        await axios.patch(
+          `${API_BASE}/api/cart/item/${product._id}`,
+          { quantity: existing.quantity + 1 },
+          { headers: { Authorization: `Bearer ${user.token}` } }
+        );
+      } else {
+        await axios.post(
+          `${API_BASE}/api/cart/add`,
+          { productId: product._id, quantity: 1 },
+          { headers: { Authorization: `Bearer ${user.token}` } }
+        );
+      }
 
-      window.dispatchEvent(new CustomEvent("cartUpdated"));
-      alert("Product added to cart!");
+      await fetchCartItems();
+        window.dispatchEvent(new Event("cartUpdated"));
     } catch (err) {
       console.error(err);
       alert("Something went wrong while adding to cart");
     }
   };
+  
+  const changeQuantity = async (productId, delta) => {
+    try {
+      const item = getCartItem(productId);
+      if (!item) return;
+      const newQty = item.quantity + delta;
+      if (newQty < 1) return;
+
+      const token = localStorage.getItem("token");
+      await axios.patch(
+        `${API_BASE}/api/cart/item/${productId}`,
+        { quantity: newQty },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      await fetchCartItems();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const removeFromCart = async (productId) => {
+    try {
+      const token = localStorage.getItem("token");
+      await axios.delete(`${API_BASE}/api/cart/item/${productId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      await fetchCartItems();
+        window.dispatchEvent(new Event("cartUpdated"));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const normalize = (str) => str.replace(/\s+/g, "").toLowerCase();
+
+  // Filter products
+  const filteredProducts = products
+    .filter(
+      (p) => selectedCategory === "All" || p.category === selectedCategory
+    )
+    .filter((p) => normalize(p.title).startsWith(normalize(searchTerm)));
 
   return (
     <Box
@@ -193,152 +255,199 @@ export default function Products() {
           minWidth={1100}
           justifyContent="flex-start"
         >
-          {filteredProducts.map((product) => (
-            <Grid key={product._id} sx={{ flex: "1 1 250px", maxWidth: 250 }}>
-              <Card
-                sx={{
-                  backgroundColor: "#EEEDE7",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "flex-start",
-                  position: "relative",
-                  "&:hover .shop-btn": { opacity: 1 },
-                }}
-              >
-                {product.chip && (
-                  <Chip
-                    label={product.chip}
-                    sx={{
-                      position: "absolute",
-                      top: 8,
-                      left: 8,
-                      backgroundColor: "#D3744A",
-                      color: "white",
-                      fontWeight: "bold",
-                    }}
-                  />
-                )}
-                <Box sx={{ backgroundColor: "white", p: 3 }}>
-                  <CardMedia
-                    component="img"
-                    alt={product.title}
-                    image={`${API_BASE}${product.image}`}
-                    sx={{
-                      width: "150px",
-                      height: "150px",
-                      objectFit: "contain",
-                      mx: "auto",
-                    }}
-                  />
-                </Box>
-                <CardContent sx={{ textAlign: "center" }}>
-                  <Typography variant="h6" sx={{ fontSize: "1.2rem" }}>
-                    {product.title}
-                  </Typography>
-                  <Typography variant="body1" sx={{ fontSize: "1rem", mt: 1 }}>
-                    ₹{Number(product.price).toLocaleString("en-IN")}
-                    <span
-                      style={{ textDecoration: "line-through", marginLeft: 8 }}
+          {filteredProducts.map((product) => {
+            const cartItem = getCartItem(product._id);
+            return (
+              <Grid key={product._id} sx={{ flex: "1 1 250px", maxWidth: 250 }}>
+                <Card
+                  className="product-card"
+                  sx={{
+                    backgroundColor: "#EEEDE7",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "flex-start",
+                    position: "relative",
+                  }}
+                >
+                  {product.chip && (
+                    <Chip
+                      label={product.chip}
+                      sx={{
+                        position: "absolute",
+                        top: 8,
+                        left: 8,
+                        backgroundColor: "#D3744A",
+                        color: "white",
+                        fontWeight: "bold",
+                      }}
+                    />
+                  )}
+                  <Box sx={{ backgroundColor: "white", p: 3 }}>
+                    <CardMedia
+                      component="img"
+                      alt={product.title}
+                      image={`${API_BASE}${product.image}`}
+                      sx={{
+                        width: "150px",
+                        height: "150px",
+                        objectFit: "contain",
+                        mx: "auto",
+                      }}
+                    />
+                  </Box>
+                  <CardContent sx={{ textAlign: "center" }}>
+                    <Typography variant="h6" sx={{ fontSize: "1.2rem" }}>
+                      {product.title}
+                    </Typography>
+                    <Typography
+                      variant="body1"
+                      sx={{ fontSize: "1rem", mt: 1 }}
                     >
-                      ₹{Number(product.originalPrice).toLocaleString("en-IN")}
-                    </span>
-                  </Typography>
+                      ₹{Number(product.price).toLocaleString("en-IN")}
+                      <span
+                        style={{
+                          textDecoration: "line-through",
+                          marginLeft: 8,
+                        }}
+                      >
+                        ₹
+                        {Number(product.originalPrice).toLocaleString("en-IN")}
+                      </span>
+                    </Typography>
 
-                  {/* Add to Cart Button */}
-                  <Button
-                    variant="contained"
-                    startIcon={<ShoppingCart />}
-                    sx={{
-                      mt: 2,
-                      backgroundColor: "#4CAF50",
-                      "&:hover": { backgroundColor: "#45A049" },
-                      width: "100%",
-                    }}
-                    onClick={() => handleAddToCart(product)}
-                  >
-                    Add to Cart
-                  </Button>
+                    {!cartItem ? (
+                      <Button
+                       variant="customContained" 
+                        startIcon={<ShoppingCart />}
+                        sx={{
+                          mt: 2,
+                          width: "100%",
+                        }}
+                        onClick={() => handleAddToCart(product)}
+                      >
+                        Add to Cart
+                      </Button>
+                    ) : (
+                      <>
+                        {/* Quantity Controls - hidden until hover (no space reserved) */}
+                        <Box
+                          sx={{
+                            display: "none",
+                            gap: 1,
+                            alignItems: "center",
+                            justifyContent: "center",
+                            mt: 2,
+                            ".product-card:hover &": {
+                              display: "flex",
+                            },
+                          }}
+                        >
+                          <Button
+                            variant="outlined"
+                            onClick={() =>
+                              changeQuantity(product._id, -1)
+                            }
+                          >
+                            -
+                          </Button>
+                          <Typography>{cartItem.quantity}</Typography>
+                          <Button
+                            variant="outlined"
+                            onClick={() =>
+                              changeQuantity(product._id, 1)
+                            }
+                          >
+                            +
+                          </Button>
+                        </Box>
 
-                  {/* Shop Now Button */}
-                  <CommonButton
-                    component={Link}
-                    to={`/shop/${product._id}`}
-                    variant="contained"
-                    startIcon={<ShoppingCart />}
-                    className="shop-btn"
-                    sx={{
-                      mt: 2,
-                      opacity: 0,
-                      transition: "opacity 0.3s",
-                      backgroundColor: "#D3744A",
-                      "&:hover": { backgroundColor: "#b85c36" },
-                      width: "100%",
-                    }}
-                  >
-                    Shop Now
-                  </CommonButton>
+                        <Button
+                          variant="outlined"
+                          color="error"
+                          sx={{ mt: 2, width: "100%" }}
+                          onClick={() => removeFromCart(product._id)}
+                        >
+                          Remove from Cart
+                        </Button>
+                      </>
+                    )}
 
-                  {/* Admin Edit/Delete Buttons */}
-                  {user?.isAdmin && (
-                    <Box
+                    {/* Shop Now Button (commented) */}
+                    {/*
+                    <CommonButton
+                      component={Link}
+                      to={`/shop/${product._id}`}
+                      variant="contained"
+                      startIcon={<ShoppingCart />}
+                      className="shop-btn"
                       sx={{
                         mt: 2,
-                        display: "flex",
-                        gap: 1,
-                        justifyContent: "center",
+                        opacity: 0,
+                        transition: "opacity 0.3s",
+                        backgroundColor: "#D3744A",
+                        "&:hover": { backgroundColor: "#b85c36" },
+                        width: "100%",
                       }}
                     >
-                      <CommonButton
-                        component={Link}
-                        to={`/create-product/${product._id}`}
-                        variant="outlined"
+                      Shop Now
+                    </CommonButton>
+                    */}
+
+                    {/* Admin Edit/Delete */}
+                    {user?.isAdmin && (
+                      <Box
                         sx={{
-                          borderColor: "#1976d2",
-                          backgroundColor: "white",
-                          color: "#1976d2",
+                          mt: 2,
+                          display: "flex",
+                          gap: 1,
+                          justifyContent: "center",
                         }}
                       >
-                        Edit
-                      </CommonButton>
-                      <CommonButton
-                        variant="outlined"
-                        sx={{
-                          borderColor: "#d32f2f",
-                          backgroundColor: "white",
-                          color: "#d32f2f",
-                        }}
-                        onClick={async () => {
-                          if (
-                            window.confirm(
-                              "Are you sure you want to delete this product?"
-                            )
-                          ) {
-                            try {
-                              await axios.delete(
-                                `${API_BASE}/api/products/${product._id}`,
-                                {
-                                  headers: {
-                                    Authorization: `Bearer ${user.token}`,
-                                  },
-                                }
-                              );
-                              setProducts(
-                                products.filter((p) => p._id !== product._id)
-                              );
-                            } catch (err) {
-                              alert("Failed to delete product");
+                        <Button
+                          component={Link}
+                          to={`/create-product/${product._id}`}
+                          variant="customOutlined"
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          variant="customOutlined"
+                          sx={{
+                            backgroundColor: "white",
+                          }}
+                          onClick={async () => {
+                            if (
+                              window.confirm(
+                                "Are you sure you want to delete this product?"
+                              )
+                            ) {
+                              try {
+                                await axios.delete(
+                                  `${API_BASE}/api/products/${product._id}`,
+                                  {
+                                    headers: {
+                                      Authorization: `Bearer ${user.token}`,
+                                    },
+                                  }
+                                );
+                                setProducts(
+                                  products.filter((p) => p._id !== product._id)
+                                );
+                              } catch (err) {
+                                alert("Failed to delete product");
+                              }
                             }
-                          }
-                        }}
-                      >
-                        Delete
-                      </CommonButton>
-                    </Box>
-                  )}
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
+                          }}
+                        >
+                          Delete
+                        </Button>
+                      </Box>
+                    )}
+                  </CardContent>
+                </Card>
+              </Grid>
+            );
+          })}
         </Grid>
       )}
 
@@ -372,7 +481,7 @@ export default function Products() {
         </Box>
       )}
 
-      {/* Admin Discount Field */}
+      {/* Admin Discount */}
       {user?.isAdmin && (
         <Box sx={{ mt: 6, display: "flex", alignItems: "center", gap: 2 }}>
           <TextField
@@ -411,7 +520,7 @@ export default function Products() {
         </Box>
       )}
 
-      {/* Admin Platform Fee Field */}
+      {/* Admin Platform Fee */}
       {user?.isAdmin && (
         <Box sx={{ mt: 4, display: "flex", alignItems: "center", gap: 2 }}>
           <TextField

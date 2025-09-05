@@ -18,3 +18,7 @@ export const CommonTypography = styled(Typography)(({ theme }) => ({
   letterSpacing: "0%",
   color: "#503217",
 }));
+
+
+
+

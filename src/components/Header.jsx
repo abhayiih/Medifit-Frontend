@@ -40,38 +40,32 @@ export default function Header() {
   const handleMenuOpen = (event) => setAnchorEl(event.currentTarget);
   const handleMenuClose = () => setAnchorEl(null);
 
-const handleSearchIconClick = () => {
-  setShowSearch((prev) => {
-    if (prev) {
-      setSearchTerm("");
-      window.dispatchEvent(new CustomEvent("searchUpdated", { detail: "" }));
-    }
-    return !prev;
-  });
-};
-
+  const handleSearchIconClick = () => {
+    setShowSearch((prev) => {
+      if (prev) {
+        setSearchTerm("");
+        window.dispatchEvent(new CustomEvent("searchUpdated", { detail: "" }));
+      }
+      return !prev;
+    });
+  };
 
   const handleSearchChange = (e) => {
     const term = e.target.value;
     setSearchTerm(term);
-
-    // Send search term to Products page
     window.dispatchEvent(new CustomEvent("searchUpdated", { detail: term }));
   };
 
-  // Auto focus search field when opened
   useEffect(() => {
     if (showSearch && searchInputRef.current) {
       searchInputRef.current.focus();
     }
   }, [showSearch]);
 
-  //  Clear search when leaving /products
   useEffect(() => {
     if (location.pathname !== "/products") {
-      setSearchTerm(""); // clear the text
-      setShowSearch(false); // hide the input
-      //Products page to reset its filter
+      setSearchTerm("");
+      setShowSearch(false);
       window.dispatchEvent(new CustomEvent("searchUpdated", { detail: "" }));
     }
   }, [location.pathname]);
@@ -148,7 +142,16 @@ const handleSearchIconClick = () => {
   };
 
   const handleOrderClick = () => {
-    navigate("/orders");
+    if (user?.isAdmin) {
+      navigate("/admin/orders"); // admin view orders
+    } else {
+      navigate("/orders"); // regular user orders
+    }
+    handleMenuClose();
+  };
+
+  const handleProfileClick = () => {
+    navigate("/profile");
     handleMenuClose();
   };
 
@@ -202,7 +205,7 @@ const handleSearchIconClick = () => {
 
         {/* Right side actions */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          {/* Search Icon & Input (only on products page) */}
+          {/* Search Icon & Input */}
           {location.pathname === "/products" && (
             <>
               <IconButton onClick={handleSearchIconClick}>
@@ -252,7 +255,10 @@ const handleSearchIconClick = () => {
             <MenuItem onClick={handleAuthClick}>
               {isLoggedIn ? "Logout" : "Login"}
             </MenuItem>
-            <MenuItem onClick={handleOrderClick}>Orders</MenuItem>
+            <MenuItem onClick={handleOrderClick}>
+              {user?.isAdmin ? "View All Orders" : "Orders"}
+            </MenuItem>
+            {/* <MenuItem onClick={handleProfileClick}>Profile</MenuItem> */}
           </Menu>
         </Box>
       </Toolbar>

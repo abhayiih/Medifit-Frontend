@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+
 import axios from "axios";
 import {
   Box,
@@ -88,10 +89,10 @@ const UsersPage = () => {
       ) : (
         <Grid container spacing={2}>
           {users.map((u) => (
-            <Grid item xs={12} sm={6} md={4} key={u._id}>
+            <Grid size={{xs:12,sm:6,md:3}} key={u._id}>
               <Card>
                 <CardContent>
-                  <Typography variant="h6">{u.username}</Typography>
+                  <Typography  variant="h6">{u.username}</Typography>
                   <Typography>Email: {u.email}</Typography>
                   <Typography>Admin: {u.isAdmin ? "Yes" : "No"}</Typography>
                   <Typography>Blocked: {u.isBlocked ? "Yes" : "No"}</Typography>
@@ -103,20 +104,21 @@ const UsersPage = () => {
                   </Typography>
 
                   <Box mt={2} sx={{ display: "flex", gap: 1 }}>
+
                     <Button
-                      variant="contained"
-                      color={u.isBlocked ? "success" : "warning"}
+                      variant="customOutlined"
                       onClick={() => handleToggleBlock(u._id)}
                     >
-                      {u.isBlocked ? "Enable" : "Disable"}
+                      {u.isBlocked ? "unBlock" : "Block"}
                     </Button>
+
                     <Button
-                      variant="contained"
-                      color="error"
+                     variant="customContained" 
                       onClick={() => handleDelete(u._id)}
                     >
-                      Delete
+                    Delete
                     </Button>
+
                   </Box>
                 </CardContent>
               </Card>
